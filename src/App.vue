@@ -19,16 +19,18 @@
 }
 .pageborder{
   overflow: hidden;
+  min-height: 100vh;
   height: 100%;
   width: 100%;
   background-color: #f7f7f7;
 }
 .pageback{
-  margin: 12px;
   background-color: #ffffff;
 }
 .pageinpadding{
+  min-height: calc(100vh - 48px);
   padding: 16px;
+  padding-top: 32px;
 }
 body{
   margin: 0
