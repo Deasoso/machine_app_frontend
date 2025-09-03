@@ -1,22 +1,22 @@
 <template>
   <div class="pageborder">
     <div class="pageback">
-      <div class="pageinpadding" :style="{ backgroundImage: `url(${backgroundImage})`, backgroundPosition: 'center'}">
-        <div class="onebutton">
-          <el-row :gutter="20" v-for="machine, index1 in machinelist">
-            <el-col :span="12" v-for="item, index in actionlist[machine.id]">
-              <el-card @click="doaction(item, machine)">
+      <div class="pageinpadding" :style="{ backgroundImage: `url(${backgroundImage})`, backgroundPosition: 'center', backgroundSize: 'cover'}">
+        <div>
+          <div v-for="machine, index1 in machinelist" class="allbutton">
+            <div v-for="item, index in actionlist[machine.id]">
+              <!-- <el-card @click="doaction(item, machine)" class="onebutton">
                 <template #header>
-                  <div class="card-header">
-                    <el-avatar :size="50" :src="item.iconurl" />
-                    <div class="actionname">{{item.name}}</div>
+                  <div class="card-header"> -->
+                    <el-avatar class="shadow" :size="80" :src="item.iconurl" style="" @click="doaction(item, machine)"/>
+                    <!-- <div class="actionname">{{item.name}}</div>
                   </div>
                 </template>
                 <el-image style="width: 100%" :src="item ? item.imageurl : ''" fit="contain" />
-              </el-card>
-            </el-col>
+              </el-card> -->
+            </div>
             <el-divider v-if="index1 == machine.length - 1"/>
-          </el-row>
+          </div>
         </div>
       </div>
     </div>
@@ -59,7 +59,7 @@ const doaction = async (action, machine) => {
     ElMessageBox({
       title: "提示",
       dangerouslyUseHTMLString: true,
-      message: '确定要运行吗？',
+      message: '请确认运行动作：' + action.name,
       showCancelButton: true,
       confirmButtonText: "确定",
       cancelButtonText: "取消",
@@ -129,6 +129,15 @@ const doaction = async (action, machine) => {
   margin-left: 60px;
 }
 .onebutton{
-  margin-top: 10px
+  width: 188px;
+}
+.shadow{
+  box-shadow: 2px 2px 3px 1px #0000009f;
+}
+.allbutton{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
 }
 </style>
