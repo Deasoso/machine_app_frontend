@@ -8,7 +8,7 @@
               <!-- <el-card @click="doaction(item, machine)" class="onebutton">
                 <template #header>
                   <div class="card-header"> -->
-                    <el-avatar class="shadow" :size="80" :src="item.iconurl" style="" @click="doaction(item, machine)"/>
+                    <img class="shadow" :src="item.iconurl" @click="clickpic(item, machine)"></img>
                     <!-- <div class="actionname">{{item.name}}</div>
                   </div>
                 </template>
@@ -20,6 +20,20 @@
         </div>
       </div>
     </div>
+    <d-modal v-model="openconfirm">
+      <template #header>
+        <d-modal-header>
+          <span>请确认</span>
+        </d-modal-header>
+      </template>
+      <div>{{ confirmtext }}</div>
+      <template #footer>
+        <d-modal-footer style="text-align: right; padding-right: 20px;">
+          <d-button @click="openconfirm = false">取消</d-button>
+          <d-button @click="doaction">确认</d-button>
+        </d-modal-footer>
+      </template>
+    </d-modal>
   </div>
 </template>
 
@@ -28,7 +42,7 @@ import { useRoute } from "vue-router";
 import { onMounted, ref } from "vue";
 import axios from 'axios';
 import Cookies from 'js-cookie';
-import { ElMessageBox } from 'element-plus'
+import { useTitle } from '@vueuse/core'
 
 const route = useRoute();
 
@@ -38,7 +52,16 @@ const backgroundImage = ref('');
 
 onMounted(async () => {
   const token = route.query ? route.query.token : '';
-  var addr = 'http://localhost:8481/api'
+  
+  // 创建响应式标题对象（默认读取当前文档标题）
+  // const pageTitle = useTitle()
+
+  // 三秒后自动更新标题
+  // setTimeout(() => {
+  //   pageTitle.value = '用户控制台 (3条新消息)'
+  // }, 3000)
+
+  var addr = 'http://39.108.167.152:8481/api'
   const result = await axios.post(
     addr + '/getactions', 
     {},
@@ -54,32 +77,49 @@ onMounted(async () => {
   backgroundImage.value = result.data.activity.imageurl;
 })
 
-const doaction = async (action, machine) => {
-  const sure = await new Promise((resolve, reject) => {
-    ElMessageBox({
-      title: "提示",
-      dangerouslyUseHTMLString: true,
-      message: '请确认运行动作：' + action.name,
-      showCancelButton: true,
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
-      beforeClose: (action, instance, done) => {
-        if (action === "confirm") {
-          done();
-          resolve(true);
-        } else {
-          done();
-          resolve(false);
-        }
-      }
-    }).catch(() => {
-      resolve(false);
-    });
-  });
-  if (!sure) return;
-  if(action.type == 0){
-    axios.post("http://" + machine.ip + "/public/task",{
-      "scene_id": 10053,
+const openconfirm = ref(false);
+const confirmtext = ref('');
+const confirmaction = ref({});
+const confirmmachine = ref({});
+
+const clickpic = (action, machine) => {
+  confirmtext.value = '确定要运行动作：' + action.name + '吗？';
+  confirmaction.value = action;
+  confirmmachine.value = machine;
+  openconfirm.value = true;
+}
+
+const doaction = () => {
+  openconfirm.value = false;
+  // const sure = await new Promise((resol
+  // ve, reject) => {
+  //   ElMessageBox({
+  //     title: "提示",
+  //     dangerouslyUseHTMLString: true,
+  //     message: '请确认运行动作：' + action.name,
+  //     showCancelButton: true,
+  //     confirmButtonText: "确定",
+  //     cancelButtonText: "取消",
+  //     beforeClose: (action, instance, done) => {
+  //       if (action === "confirm") {
+  //         done();
+  //         resolve(true);
+  //       } else {
+  //         done();
+  //         resolve(false);
+  //       }
+  //     }
+  //   }).catch(() => {
+  //     resolve(false);
+  //   });
+  // });
+  // if (!sure) return;
+  console.log('1111')
+  console.log("http://" + confirmmachine.value.ip + "/public/task");
+  console.log(confirmaction.value.actionid);
+  if(confirmaction.value.type == 0){
+    axios.post("http://" + confirmmachine.value.ip + "/public/task", {
+      "scene_id": confirmaction.value.actionid,
       "execute_count": 0,
       "clear": 1
     })
@@ -133,6 +173,9 @@ const doaction = async (action, machine) => {
 }
 .shadow{
   box-shadow: 2px 2px 3px 1px #0000009f;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
 }
 .allbutton{
   display: flex;

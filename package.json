@@ -7,16 +7,15 @@
     "build": "vue-cli-service build"
   },
   "dependencies": {
-    "@nutui/nutui": "^4.3.2",
-    "@wangeditor/editor": "^5.1.23",
-    "@wangeditor/editor-for-vue": "^5.1.12",
+    "@devui-design/icons": "^1.4.0",
+    "@vueuse/core": "^13.9.0",
     "axios": "^1.6.7",
     "core-js": "^3.8.3",
     "crypto-js": "^4.2.0",
-    "element-plus": "^2.6.1",
+    "devui-theme": "^0.1.0",
     "js-cookie": "^3.0.5",
-    "python-shell": "^5.0.0",
     "vue": "^3.2.13",
+    "vue-devui": "^1.6.33",
     "vue-router": "^4.0.3",
     "vuex": "^4.0.0"
   },

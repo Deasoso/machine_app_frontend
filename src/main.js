@@ -3,16 +3,14 @@ import App from './App.vue'
 import router from './router'
 import store from './store'
 
-import NutUI from "@nutui/nutui";
-import "@nutui/nutui/dist/style.css";
+import DevUI from 'vue-devui';
+import 'vue-devui/style.css';
+import '@devui-design/icons/icomoon/devui-icon.css';
+import { ThemeServiceInit, infinityTheme } from 'devui-theme';
 
-import ElementUI from "element-plus";
-import 'element-plus/dist/index.css'
-import zhLocale from "element-plus/es/locale/lang/zh-cn";
+ThemeServiceInit({ infinityTheme }, 'infinityTheme');
 
-const app = createApp(App).use().use(NutUI).use(ElementUI, {
-  locale: zhLocale
-}).use(store).use(router);
+const app = createApp(App).use().use(DevUI).use(store).use(router);
 
 app.mount('#app');
 
