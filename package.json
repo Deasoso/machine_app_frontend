@@ -13,6 +13,7 @@
     "core-js": "^3.8.3",
     "crypto-js": "^4.2.0",
     "devui-theme": "^0.1.0",
+    "element-plus": "^2.11.2",
     "js-cookie": "^3.0.5",
     "vue": "^3.2.13",
     "vue-devui": "^1.6.33",

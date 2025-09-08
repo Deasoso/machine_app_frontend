@@ -28,9 +28,7 @@
   background-color: #ffffff;
 }
 .pageinpadding{
-  min-height: calc(100vh - 48px);
-  padding: 16px;
-  padding-top: 32px;
+  min-height: 100vh;
 }
 body{
   margin: 0
