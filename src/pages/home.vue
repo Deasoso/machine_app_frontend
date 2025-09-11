@@ -16,7 +16,7 @@
                   ● 运行中
                 </div>
                 <div v-else style="color: #F56C6C">
-                  ● 已停止
+                  ● 未连接
                 </div>
               </el-col>
             </el-row>
@@ -28,7 +28,7 @@
                 ● 运行中
               </div>
               <div v-else style="color: #F56C6C">
-                ● 已停止
+                ● 未连接
               </div>
             </div>
             <div v-for="item, index in actionlist[machine.id]" :style="{flex: '0 1 calc(' + (100 / actionperrow) + '% - 5px', textAlign: 'center'}">
@@ -109,9 +109,9 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useTitle, useFavicon } from '@vueuse/core'
 import { ElMessage } from 'element-plus'
-
-var xmlrpc = require('xmlrpc')
-
+import { serializeMethodCall } from './xml'
+import x2js from 'x2js'
+const xmlparser = new x2js();
 const route = useRoute();
 
 const activity = ref({});
@@ -127,13 +127,14 @@ const fontcolor = ref('#000000');
 const fontname = ref('');
 
 const machinestatus = ref([]);
-const tasklist = ref({1: [1,1,1,1,1,1,1,1]});
+const tasklist = ref({});
 const showlist = ref(false);
 
 const activemachine = ref(0);
 const issee = ref(false);
 
 const robottaskids = ref({});
+const getcookies = ref({})
 
 onMounted(async () => {
   
@@ -159,53 +160,99 @@ onMounted(async () => {
     const allmachines = result.data.machines;
     const allactions = result.data.actions;
     for(const machineindex in allmachines){
-      setInterval(async () => {
-        try{
-          const bb = await axios.post("http://" + allmachines[machineindex].ip + ":3021", {
-            "jsonrpc": "2.0",
-            "method": "load_running_tasks",
-            "params": [
-              {}
-            ],
-            "id": 1
-          })
-          tasklist.value[allmachines[machineindex].id] = [];
-          if(bb.data.result.tasks.length > 0){
-            machinestatus.value[allmachines[machineindex].id] = 'working'
-            for(const currenttaskindex in bb.data.result.tasks){
-              const runningtask = bb.data.result.tasks[currenttaskindex]
-              if(robottaskids.value[runningtask.event_id]){
-                var have = false;
-                for(const allactionindex in allactions){
-                  if(allactions[allactionindex].actionid == robottaskids.value[runningtask.event_id]){
-                    tasklist.value[allmachines[machineindex].id].push({
-                      name: allactions[allactionindex].name
-                    })
-                    have = true;
-                    break;
+      const thisallaction = result.data.actions[allmachines[machineindex].id];
+      if(allmachines[machineindex].type == 0){
+        setInterval(async () => {
+          try{
+            const bb = await axios.post("http://" + allmachines[machineindex].ip + ":3021", {
+              "jsonrpc": "2.0",
+              "method": "load_running_tasks",
+              "params": [
+                {}
+              ],
+              "id": 1
+            })
+            tasklist.value[allmachines[machineindex].id] = [];
+            if(bb.data.result.tasks.length > 0){
+              machinestatus.value[allmachines[machineindex].id] = 'working'
+              for(const currenttaskindex in bb.data.result.tasks){
+                const runningtask = bb.data.result.tasks[currenttaskindex]
+                if(robottaskids.value[runningtask.event_id]){
+                  var have = false;
+                  for(const allactionindex in thisallaction){
+                    if(thisallaction[allactionindex].actionid == robottaskids.value[runningtask.event_id]){
+                      tasklist.value[allmachines[machineindex].id].push({
+                        name: thisallaction[allactionindex].name
+                      })
+                      have = true;
+                      break;
+                    }
                   }
-                }
-                if(!have){
+                  if(!have){
+                    tasklist.value[allmachines[machineindex].id].push({
+                      name: robottaskids.value[runningtask.event_id].name
+                    })
+                  }  
+                }else{
                   tasklist.value[allmachines[machineindex].id].push({
-                    name: robottaskids.value[runningtask.event_id].name
+                    name: runningtask.event_id
                   })
-                }  
-              }else{
-                tasklist.value[allmachines[machineindex].id].push({
-                  name: runningtask.event_id
-                })
+                }
               }
+            }else{
+              machinestatus.value[allmachines[machineindex].id] = 'free';
             }
-          }else{
-            machinestatus.value[allmachines[machineindex].id] = 'free';
+          }catch(e){
+            machinestatus.value[allmachines[machineindex].id] = 'stop';
+            console.log(e);
+            console.log('没连上');
           }
-        }catch(e){
-          console.log(e);
-          console.log('没连上');
-        }
-      }, 1000)
+        }, 1000)
+      }else if(allmachines[machineindex].type == 1){
+        setInterval(async () => {
+          try{
+            const config = {
+              headers: {
+                'Content-Type': 'application/xml',
+              },
+            };
+            const statexml = serializeMethodCall('GetProgramState', []);
+            const set = await axios.post('http://' + allmachines[machineindex].ip + ':20003/RPC2', statexml, config);
+            const json = xmlparser.xml2js(set.data);
+            tasklist.value[allmachines[machineindex].id] = [];
+            if(json.methodResponse.params.param.value.array.data.value[1].i4 == 1){
+              machinestatus.value[allmachines[machineindex].id] = 'free';
+            }else{
+              const programxml = serializeMethodCall('GetLoadedProgram', []);
+              const getprogram = await axios.post('http://' + allmachines[machineindex].ip + ':20003/RPC2', programxml, config);
+              const programjson = xmlparser.xml2js(getprogram.data);
+              const programname = programjson.methodResponse.params.param.value.array.data.value[1].string;
+              const showprogramname = programname.slice(8, -4);
+              var have = false;
+              for(const allactionindex in thisallaction){
+                if(thisallaction[allactionindex].actionid == showprogramname){
+                  tasklist.value[allmachines[machineindex].id].push({
+                    name: thisallaction[allactionindex].name
+                  })
+                  have = true;
+                  break;
+                }
+              }
+              if(!have){
+                tasklist.value[allmachines[machineindex].id].push({
+                  name: showprogramname
+                })
+              }  
+              machinestatus.value[allmachines[machineindex].id] = 'working';
+            }
+          }catch(e){
+            machinestatus.value[allmachines[machineindex].id] = 'stop';
+            console.log(e);
+            console.log('没连上');
+          }
+        }, 1000)
+      }
     }
-    
   }else{
     result = await axios.post(
       addr + '/getactions', 
@@ -253,6 +300,29 @@ const clickpic = (action, machine) => {
     ElMessage('现在不能操作');
     return;
   }
+  if(machine.statu != 0){
+    ElMessage('现在不能操作');
+    return;
+  }
+  if(activity.value.type == 0){
+    if(machinestatus.value[machine.id] != 'free'){
+      ElMessage('现在不能操作');
+      return;
+    }
+  }
+  if(activity.value.type == 1){
+    if(machine.type == 1){
+      if(machinestatus.value[machine.id] != 'free'){
+        ElMessage('现在不能操作');
+        return;
+      }
+    }else{
+      if(machinestatus.value[machine.id] != 'free' && machinestatus.value[machine.id] != 'working'){
+        ElMessage('现在不能操作');
+        return;
+      }
+    }
+  }
   confirmtext.value = '确定要运行动作：' + action.name + '吗？';
   confirmaction.value = action;
   confirmmachine.value = machine;
@@ -261,29 +331,6 @@ const clickpic = (action, machine) => {
 
 const doaction = async () => {
   openconfirm.value = false;
-  // const sure = await new Promise((resol
-  // ve, reject) => {
-  //   ElMessageBox({
-  //     title: "提示",
-  //     dangerouslyUseHTMLString: true,
-  //     message: '请确认运行动作：' + action.name,
-  //     showCancelButton: true,
-  //     confirmButtonText: "确定",
-  //     cancelButtonText: "取消",
-  //     beforeClose: (action, instance, done) => {
-  //       if (action === "confirm") {
-  //         done();
-  //         resolve(true);
-  //       } else {
-  //         done();
-  //         resolve(false);
-  //       }
-  //     }
-  //   }).catch(() => {
-  //     resolve(false);
-  //   });
-  // });
-  // if (!sure) return;
 
   if(confirmaction.value.type == 0){
     const newtask = await axios.post("http://" + confirmmachine.value.ip + "/public/task", {
@@ -292,53 +339,18 @@ const doaction = async () => {
       "clear": 1
     })
     robottaskids.value[newtask.data.data.id] = confirmaction.value;
+  }else{
+    const config = {
+      headers: {
+        'Content-Type': 'application/xml',
+      },
+    };
+    const xmljson = serializeMethodCall('ProgramLoad', ['/fruser/' + confirmaction.value.actionid + '.lua']);
+    const set = await axios.post('http://' + confirmmachine.value.ip + ':20003/RPC2', xmljson, config);
+
+    const xmljson2 = serializeMethodCall('ProgramRun', []);
+    const set2 = await axios.post('http://' + confirmmachine.value.ip + ':20003/RPC2', xmljson2, config);
   }
-
-  // var client = xmlrpc.createClient({ host: '192.168.58.2', port: 20003, path: '/RPC2'})
- 
-  // // Sends a method call to the XML-RPC server
-  // client.methodCall('ProgramLoad', ['/岳阳毛笔字.lua'], function (error, value) {
-  //   // Results of the method response
-  //   console.log('Method response for \'anAction\': ' + value)
-  // })
-
-  // const aa = await axios.post("http://10.20.17.1:3021", {
-  //   "jsonrpc": "2.0",
-  //   "method": "load_running_tasks",
-  //   "params": [
-  //     {}
-  //   ],
-  //   "id": 1
-  // })
-  // console.log(aa);
-  // const config = {
-  //   withCredentials: true,
-  //   headers: {
-  //     'Content-Type': 'application/json',
-  //   },
-  // };
-  // Cookies.set("-goahead-session-", "::webs.session::fed63450554401e7662d87c3c8c35d9b");
-  // console.log(Cookies.get('-goahead-session-'));
-  // axios.post('http://192.168.58.2/action/set', {
-  //   cmd: 105,
-  //   data: {name: "123.lua"}
-  // }, config)
-  //   .then(response => {
-  //     console.log(response.data);
-  //   })
-  //   .catch(error => {
-  //     console.error(error);
-  //   });
-  // axios.post('http://192.168.58.2/action/set', {
-  //   cmd: 1001,
-  //   data: {pgline: "Lin(pos-left_2,20,-1,0,0)"}
-  // }, config)
-  //   .then(response => {
-  //     console.log(response.data);
-  //   })
-  //   .catch(error => {
-  //     console.error(error);
-  //   });
 }
 </script>
 
