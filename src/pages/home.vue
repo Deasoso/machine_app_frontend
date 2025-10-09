@@ -96,6 +96,7 @@
         </d-modal-footer>
       </template>
     </d-modal>
+    <d-button class="stopbutton" color="danger" variant="solid" @click="stopall()">停止</d-button>
     <div class="addbutton" @click="showlist = true">
       <d-icon name="list-view" size="32px" class="righticon"></d-icon>
     </div>
@@ -136,6 +137,8 @@ const issee = ref(false);
 const robottaskids = ref({});
 const getcookies = ref({})
 
+var forward_url = 'http://10.31.1.88:8129/api/search';
+
 onMounted(async () => {
   
   const token = route.query ? route.query.token : '';
@@ -146,6 +149,15 @@ onMounted(async () => {
   const pageFavicon = useFavicon();
 
   var addr = 'http://39.108.167.152:8481/api'
+  // var addr = 'http://localhost:8481/api'
+
+  // const allip = await axios.post(addr + '/searchglobal', 
+  //   { searchObj: {key: 'forwardip'} }
+  // );
+  // console.log(allip);
+  // if(allip.data.result.count > 0) forward_url = 'http://' + allip.data.result.rows[0].value + ':8129/api/search';
+  // console.log(forward_url);
+
   var result;
   if(route.query.token){
     result = await axios.post(
@@ -157,6 +169,8 @@ onMounted(async () => {
         }
       }
     );
+    forward_url = 'http://' + result.data.activity.forwardip + ':8129/api/search';
+    console.log(forward_url);
     const allmachines = result.data.machines;
     const allactions = result.data.actions;
     for(const machineindex in allmachines){
@@ -217,14 +231,22 @@ onMounted(async () => {
               },
             };
             const statexml = serializeMethodCall('GetProgramState', []);
-            const set = await axios.post('http://' + allmachines[machineindex].ip + ':20003/RPC2', statexml, config);
+            // const set = await axios.post('http://' + allmachines[machineindex].ip + ':20003/RPC2', statexml, config);
+            const set = await axios.post(forward_url, {
+              url: 'http://' + allmachines[machineindex].ip + ':20003/RPC2',
+              data: statexml,
+            });
             const json = xmlparser.xml2js(set.data);
             tasklist.value[allmachines[machineindex].id] = [];
             if(json.methodResponse.params.param.value.array.data.value[1].i4 == 1){
               machinestatus.value[allmachines[machineindex].id] = 'free';
             }else{
               const programxml = serializeMethodCall('GetLoadedProgram', []);
-              const getprogram = await axios.post('http://' + allmachines[machineindex].ip + ':20003/RPC2', programxml, config);
+              // const getprogram = await axios.post('http://' + allmachines[machineindex].ip + ':20003/RPC2', programxml, config);
+              const getprogram = await axios.post(forward_url, {
+                url: 'http://' + allmachines[machineindex].ip + ':20003/RPC2',
+                data: programxml,
+              });
               const programjson = xmlparser.xml2js(getprogram.data);
               const programname = programjson.methodResponse.params.param.value.array.data.value[1].string;
               const showprogramname = programname.slice(8, -4);
@@ -345,11 +367,35 @@ const doaction = async () => {
         'Content-Type': 'application/xml',
       },
     };
+    
     const xmljson = serializeMethodCall('ProgramLoad', ['/fruser/' + confirmaction.value.actionid + '.lua']);
-    const set = await axios.post('http://' + confirmmachine.value.ip + ':20003/RPC2', xmljson, config);
+    const set = await axios.post(forward_url, {
+      url: 'http://' + confirmmachine.value.ip + ':20003/RPC2',
+      data: xmljson,
+    });
+    // const set = await axios.post('http://' + confirmmachine.value.ip + ':20003/RPC2', xmljson, config);
 
     const xmljson2 = serializeMethodCall('ProgramRun', []);
-    const set2 = await axios.post('http://' + confirmmachine.value.ip + ':20003/RPC2', xmljson2, config);
+    const set2 = await axios.post(forward_url, {
+      url: 'http://' + confirmmachine.value.ip + ':20003/RPC2',
+      data: xmljson2,
+    });
+    // const set2 = await axios.post('http://' + confirmmachine.value.ip + ':20003/RPC2', xmljson2, config);
+
+  }
+}
+
+const stopall = async () => {
+  for(const machinelstindex in machinelist.value){
+    const getmachine = machinelist.value[machinelstindex];
+    if(getmachine.type == 1){
+      const xmljson2 = serializeMethodCall('ProgramStop', []);
+      const set2 = await axios.post(forward_url, {
+        url: 'http://' + confirmmachine.value.ip + ':20003/RPC2',
+        data: xmljson2,
+      });
+      ElMessage('已停止');
+    }
   }
 }
 </script>
@@ -395,6 +441,13 @@ const doaction = async () => {
   box-shadow: #000000;
   box-shadow: 3px 3px 5px #0000003f;
   border-radius: 50%;
+}
+.stopbutton{
+  position: fixed;
+  left: 50px;
+  bottom: 68px;
+  box-shadow: #000000;
+  box-shadow: 3px 3px 5px #0000003f;
 }
 .righticon{
   position: absolute;
